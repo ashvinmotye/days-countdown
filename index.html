@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="icon" type="image/png" href="https://ashvinmotye.com/icon.png">
+    <title>Days Countdown | Ashvin Motye</title>
+
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --text: #000;
+            --card-bg: #fff;
+            --primary: #007bff;
+            --danger: #dc3545;
+            --success: #28a745;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body.dark {
+            --bg: #1e1e1e;
+            --text: #f1f1f1;
+            --card-bg: #2a2a2a;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-btn,
+        .dark-toggle {
+            background: white;
+            color: var(--primary);
+            border: none;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-left: 0.5rem;
+        }
+
+        .container {
+            padding: 1rem;
+        }
+
+        .goal-card {
+            background: var(--card-bg);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .goal-card h3 {
+            margin: 0 0 0.5rem 0;
+        }
+
+        .goal-actions {
+            margin-top: 0.5rem;
+        }
+
+        .goal-actions button {
+            margin-right: 0.5rem;
+            padding: 0.3rem 0.6rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .edit-btn {
+            background: var(--primary);
+            color: white;
+        }
+
+        .delete-btn {
+            background: var(--danger);
+            color: white;
+        }
+
+        .input-pane {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 300px;
+            height: 100%;
+            background: var(--card-bg);
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
+            padding: 1rem;
+            transition: right 0.3s ease-in-out;
+            z-index: 1000;
+        }
+
+        .input-pane.active {
+            right: 0;
+        }
+
+        .input-pane h2 {
+            margin-top: 0;
+        }
+
+        .input-pane input,
+        .input-pane button {
+            width: 100%;
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+        }
+
+        .close-btn {
+            background: var(--danger);
+            color: white;
+        }
+
+        .add-btn {
+            background: var(--success);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>Days Countdown</h1>
+        <div>
+            <button class="dark-toggle" onclick="toggleDarkMode()">Dark Mode</button>
+            <button class="settings-btn" onclick="togglePane()">Settings</button>
+        </div>
+    </div>
+
+    <div class="container" id="goalDisplay"></div>
+
+    <div class="input-pane" id="inputPane">
+        <h2 id="formTitle">Add Goal</h2>
+        <input type="text" id="goalName" placeholder="Goal Name" />
+        <input type="date" id="goalDate" />
+        <button class="add-btn" onclick="submitGoal()">Save</button>
+        <button class="close-btn" onclick="cancelEdit()">Close</button>
+    </div>
+
+    <script>
+        let goals = JSON.parse(localStorage.getItem('goals')) || [];
+        let editingIndex = null;
+
+        function togglePane() {
+            document.getElementById('inputPane').classList.toggle('active');
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.body.classList.toggle('dark');
+            localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+        }
+
+        function cancelEdit() {
+            editingIndex = null;
+            document.getElementById('goalName').value = '';
+            document.getElementById('goalDate').value = '';
+            document.getElementById('formTitle').innerText = 'Add Goal';
+            togglePane();
+        }
+
+        function calculateDaysRemaining(dateStr) {
+            const today = new Date();
+            const target = new Date(dateStr);
+            const diff = target - today;
+            return Math.ceil(diff / (1000 * 60 * 60 * 24));
+        }
+
+        function submitGoal() {
+            const name = document.getElementById('goalName').value.trim();
+            const date = document.getElementById('goalDate').value;
+            if (!name || !date) {
+                alert("Please fill in all fields");
+                return;
+            }
+
+            const daysRemaining = calculateDaysRemaining(date);
+            if (daysRemaining < 0) {
+                alert("Please enter a future date");
+                return;
+            }
+
+            const goal = { name, date };
+
+            if (editingIndex !== null) {
+                goals[editingIndex] = goal;
+                editingIndex = null;
+            } else {
+                goals.push(goal);
+            }
+
+            localStorage.setItem('goals', JSON.stringify(goals));
+            updateDisplay();
+            cancelEdit();
+        }
+
+        function editGoal(index) {
+            const goal = goals[index];
+            document.getElementById('goalName').value = goal.name;
+            document.getElementById('goalDate').value = goal.date;
+            document.getElementById('formTitle').innerText = 'Edit Goal';
+            editingIndex = index;
+            togglePane();
+        }
+
+        function deleteGoal(index) {
+            if (confirm("Are you sure you want to delete this goal?")) {
+                goals.splice(index, 1);
+                localStorage.setItem('goals', JSON.stringify(goals));
+                updateDisplay();
+            }
+        }
+
+        function updateDisplay() {
+            const container = document.getElementById('goalDisplay');
+            container.innerHTML = '';
+
+            const enrichedGoals = goals.map((g, i) => ({
+                ...g,
+                daysRemaining: calculateDaysRemaining(g.date),
+                originalIndex: i
+            }));
+
+            enrichedGoals.sort((a, b) => a.daysRemaining - b.daysRemaining);
+
+            enrichedGoals.forEach((goal) => {
+                const card = document.createElement('div');
+                card.className = 'goal-card';
+                card.innerHTML = `
+                    <h3>${goal.name}</h3>
+                    <p>Target Date: ${goal.date}</p>
+                    <p>Days Remaining: ${goal.daysRemaining}</p>
+                    <div class="goal-actions">
+                        <button class="edit-btn" onclick="editGoal(${goal.originalIndex})">Edit</button>
+                        <button class="delete-btn" onclick="deleteGoal(${goal.originalIndex})">Delete</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        updateDisplay();
+
+        // Restore dark mode setting
+        if (localStorage.getItem('darkMode') === 'enabled') {
+            document.body.classList.add('dark');
+        }
+    </script>
+
+</body>
+
+</html>
